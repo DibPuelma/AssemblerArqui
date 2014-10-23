@@ -47,6 +47,7 @@ namespace WpfApplication1
                 string filename = dlg.FileName;
                 generateCPUInstructions(filename);
             }
+            generateOutput()
         }
         private void generateCPUInstructions(string file)
         {
@@ -104,31 +105,45 @@ namespace WpfApplication1
                 string litOrDir = "";
                 if (verificador[1].StartsWith("(") && verificador[1].ElementAt(1).GetType().IsInstanceOfType(validador)) // El string despues de la coma es una dirección de memoria
                 {
-                    if (verificador[1].ElementAt(verificador[1].Length - 2) == 'b') //es binario
-                    {
-                        litOrDir = verificador[1].Substring(1, 5);
-                    }
-                    else if (verificador[1].ElementAt(verificador[1].Length - 2) == 'h') //es hexa
-                    {
-                        litOrDir = hexaConverter(verificador[1].Substring(1,2));
-                    }
-                    else //decimal
-                    {
-                        litOrDir = decimalConverter(verificador[1].Substring(1, 3));
-                    }
+                    litOrDir = getBinaryValue(verificador[1]);
                     putInstructionInAssembler(verificador[0] + ",(DIR)", litOrDir); //AÑADIR LA DIRECCION, EL PROBLEMA ES QUE PUEDE SER BINARIO, DECIMAL O HEXA
                 }
-                else if (verificador[0].EndsWith(")") && verificador[0].ElementAt(1).GetType().IsInstanceOfType(validador)) // El string antes de la coma es una dirección de memoria
+                else if (verificador[0].EndsWith(")") && verificador[0].ElementAt(verificador[0].Length-2).GetType().IsInstanceOfType(validador)) // El string antes de la coma es una dirección de memoria
                 {
-                    putInstructionInAssembler("(DIR)," + verificador[1], "00");
+                    string[] direction = verificador[0].Split('(');
+                    litOrDir = getBinaryValue("(" + direction[1]);
+                    putInstructionInAssembler(direction[0] + "(DIR)," + verificador[1], litOrDir);
                 }
                 else if (verificador[1].ElementAt(0).GetType().IsInstanceOfType(validador)) // El string despues de la coma es un literal
                 {
-                    putInstructionInAssembler(verificador[0] + ",LIT", "00");
+                    litOrDir = getBinaryValue("(" + verificador[1] + ")");
+                    putInstructionInAssembler(verificador[0] + ",LIT", litOrDir);
                 }
                 else //Es instrucción cualquiera
                 {
                     putInstructionInAssembler(newCode, null); //Mapea la instruccion con su opcode, lo concatena con Mem[... y además lo guarda en assembledLines
+                }
+            }
+        }
+        private string getBinaryValue(string number) // number es de la forma '(numero)'
+        {
+            if (number.ElementAt(number.Length - 2) == 'b') //es binario
+            {
+                return number.Substring(1, number.Length - 3);
+            }
+            else if (number.ElementAt(number.Length - 2) == 'h') //es hexa
+            {
+                return hexConverter(number.Substring(1, number.Length - 3));
+            }
+            else //decimal
+            {
+                if (number.ElementAt(number.Length - 2) == 'd')
+                {
+                    return decimalConverter(number.Substring(1, number.Length - 3));
+                }
+                else
+                {
+                    return decimalConverter(number.Substring(1, number.Length - 2));
                 }
             }
         }
@@ -138,10 +153,8 @@ namespace WpfApplication1
         }
         private string deleteComments(string commentedLine)
         {
-            string[] splitedStrings = commentedLine.Split('/');
-            if (splitedStrings[1].Substring(0, 1) == "/")
-            {
-                return splitedStrings[0];
+            if(commentedLine.Contains("//")){
+                return  commentedLine.Split('/')[0];
             }
             return commentedLine;
 
@@ -160,9 +173,10 @@ namespace WpfApplication1
         }
         private void addFooterInstructions(int lastInstructionNumber)
         {
-            for (int i = lastInstructionNumber + 1; i <= 255; i++)
+            while(contadorGlobal <= 255)
             {
-                assembledLines.Add("Mem["+i+"] = 25'b0000000000000000000000000;"
+                assembledLines.Add("Mem[" + contadorGlobal + "] = 25'b0000000000000000000000000;");
+                contadorGlobal++;
             }
             assembledLines.Add("");
             assembledLines.Add("instruction = Mem[address];");
@@ -193,26 +207,30 @@ namespace WpfApplication1
             hash.Add("JEQINS", "000010110");
             hash.Add("JMPINS", "000010100");
         }
-        private void putInstructionInAssembler(string instruction, string literal)
+        private void putInstructionInAssembler(string instruction, string literal) //instrucción dentro del hash y literal debe ser binario de 5 digitos, por ejemplo "10010" y se refiere a literal o direccion de memoria
         {
-
             if (literal == null)
             {
                 literal = "00000";
             }
             string start = "Mem[" + contadorGlobal + "] = 25'b00000000";
-            string result;
+            string result = "";
             hash.TryGetValue(instruction, out result);
             result = start + result + "000" + literal +";";
             assembledLines.Add(result);
         }
-        private string hexaConverter(string binary)
+        private string hexConverter(string hexvalue)
         {
-            return null;
+            return Convert.ToString(Convert.ToInt32(hexvalue, 16), 2);
+
         }
-        private string decimalConverter(string binary)
+        private string decimalConverter(string dec)
         {
-            return null;
+            return Convert.ToString(Int32.Parse(dec), 2);
+        }
+        private void generateOutput()
+        {
+
         }
     }
 }
